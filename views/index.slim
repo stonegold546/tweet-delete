@@ -1,0 +1,6 @@
+- if @logged_in
+    markdown:
+      [Twitter Sign-Out]()
+- else
+    markdown:
+      [Twitter OAuth](#{oauth_auth}?oauth_token=#{oauth_token})
