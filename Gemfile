@@ -1,0 +1,13 @@
+source 'https://rubygems.org'
+ruby '2.2.0'
+
+gem 'sinatra'
+gem 'puma'
+gem 'config_env'
+gem 'slim'
+gem 'kramdown'
+gem 'httparty'
+gem 'rake'
+gem 'twitter'
+gem 'rack-ssl-enforcer'
+gem 'rbnacl-libsodium'
