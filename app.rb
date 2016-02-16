@@ -10,6 +10,7 @@ require 'rbnacl/libsodium'
 require 'base64'
 require 'cgi'
 require 'csv'
+require 'yaml'
 
 configure :development, :test do
   ConfigEnv.init("#{__dir__}/config/config_env.rb")
@@ -134,15 +135,30 @@ class DeleteTweetApp < Sinatra::Base
   post '/delete_tweets/?' do
     tweet_ids = CSV.foreach(params['id_file']).map { |row| row[0] }
     tweet_ids = tweet_ids.select { |e| e.to_i < params['max_tweet_id'].to_i }
+    done = YAML.load_file('tweets.yml')
+    done_tweets = []
+    done ? done_tweets = done : done = []
+    tweet_ids -= done
     oauth_token = session[:oauth_token]
     oauth_token_secret = session[:oauth_token_secret]
     tweet_ids.each do |id|
-      url = tweet_url(id)
-      header_data = header(
-        ['POST', url], { 'oauth_token' => oauth_token }, oauth_token_secret)
-      q = HTTParty.post url, headers: header_data
-      print id + ': ' + q.code.to_s + "\t"
-      sleep 03
+      begin
+        url = tweet_url(id)
+        header_data = header(
+          ['POST', url], { 'oauth_token' => oauth_token }, oauth_token_secret)
+        q = HTTParty.post url, headers: header_data
+        done_tweets << id
+        f = File.new('tweets.yml', 'w+')
+        f.write(done_tweets.to_yaml)
+        f.close
+        print id + ': ' + q.code.to_s + "\t"
+      rescue
+        puts "\nTEST!\n\n"
+        sleep 30
+        redo
+      end
+      # puts q.headers.inspect + "\n"
+      # sleep 03
     end
   end
 end
