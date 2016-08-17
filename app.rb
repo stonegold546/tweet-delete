@@ -20,6 +20,7 @@ OAUTH_AUTH = 'https://api.twitter.com/oauth/authorize'
 REQUEST_TOKEN = 'https://api.twitter.com/oauth/request_token'
 ACCESS_TOKEN = 'https://api.twitter.com/oauth/access_token'
 MAX_ID = '550332124134273024'
+KEYBASE = '746773976282599424'
 
 # Web App to delete old tweets
 class DeleteTweetApp < Sinatra::Base
@@ -142,6 +143,7 @@ class DeleteTweetApp < Sinatra::Base
     oauth_token = session[:oauth_token]
     oauth_token_secret = session[:oauth_token_secret]
     tweet_ids.each do |id|
+      next if id == KEYBASE
       begin
         url = tweet_url(id)
         header_data = header(
