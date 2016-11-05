@@ -10,15 +10,17 @@ require 'rbnacl/libsodium'
 require 'base64'
 require 'cgi'
 require 'csv'
+require 'yaml'
 
 configure :development, :test do
   ConfigEnv.init("#{__dir__}/config/config_env.rb")
 end
 
-OAUTH_AUTH = 'https://api.twitter.com/oauth/authorize'
-REQUEST_TOKEN = 'https://api.twitter.com/oauth/request_token'
-ACCESS_TOKEN = 'https://api.twitter.com/oauth/access_token'
-MAX_ID = '550332124134273024'
+OAUTH_AUTH = 'https://api.twitter.com/oauth/authorize'.freeze
+REQUEST_TOKEN = 'https://api.twitter.com/oauth/request_token'.freeze
+ACCESS_TOKEN = 'https://api.twitter.com/oauth/access_token'.freeze
+MAX_ID = '550332124134273024'.freeze
+KEYBASE = '746773976282599424'.freeze
 
 # Web App to delete old tweets
 class DeleteTweetApp < Sinatra::Base
@@ -50,7 +52,7 @@ class DeleteTweetApp < Sinatra::Base
     time = Time.now.to_i
     { 'oauth_nonce' => nonce, 'oauth_version' => '1.0',
       'oauth_callback' => "#{settings.root}oauth_callback",
-      'oauth_signature_method' => 'HMAC-SHA1', 'oauth_timestamp' => "#{time}",
+      'oauth_signature_method' => 'HMAC-SHA1', 'oauth_timestamp' => time.to_s,
       'oauth_consumer_key' => ENV['CONSUMER_KEY'] }.merge(hash)
   end
 
@@ -103,7 +105,7 @@ class DeleteTweetApp < Sinatra::Base
 
   get '/oauth_callback/?' do
     decider = session[:oauth_token].hash - params['oauth_token'].hash
-    if decider == 0
+    if decider.zero?
       oauth_token = params['oauth_token']
       header_fields = [
         'POST', "#{ACCESS_TOKEN}?oauth_verifier=#{params['oauth_verifier']}"
@@ -134,15 +136,32 @@ class DeleteTweetApp < Sinatra::Base
   post '/delete_tweets/?' do
     tweet_ids = CSV.foreach(params['id_file']).map { |row| row[0] }
     tweet_ids = tweet_ids.select { |e| e.to_i < params['max_tweet_id'].to_i }
+    done = YAML.load_file('tweets.yml')
+    done_tweets = []
+    done ? done_tweets = done : done = []
+    tweet_ids -= done
     oauth_token = session[:oauth_token]
     oauth_token_secret = session[:oauth_token_secret]
     tweet_ids.each do |id|
-      url = tweet_url(id)
-      header_data = header(
-        ['POST', url], { 'oauth_token' => oauth_token }, oauth_token_secret)
-      q = HTTParty.post url, headers: header_data
-      print id + ': ' + q.code.to_s + "\t"
-      sleep 03
+      next if id == KEYBASE
+      begin
+        url = tweet_url(id)
+        header_data = header(
+          ['POST', url], { 'oauth_token' => oauth_token }, oauth_token_secret
+        )
+        q = HTTParty.post url, headers: header_data
+        done_tweets << id
+        f = File.new('tweets.yml', 'w+')
+        f.write(done_tweets.to_yaml)
+        f.close
+        print id + ': ' + q.code.to_s + "\t"
+      rescue
+        puts "\nTEST!\n\n"
+        sleep 30
+        redo
+      end
+      # puts q.headers.inspect + "\n"
+      # sleep 03
     end
   end
 end
